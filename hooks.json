@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "./hooks/pipeline-attribution.sh",
+        "timeout": 15
+      }
+    ],
+    "beforeFileEdit": [
+      {
+        "command": "./hooks/pipeline-attribution-guard.sh",
+        "timeout": 15
+      }
+    ]
+  }
+}

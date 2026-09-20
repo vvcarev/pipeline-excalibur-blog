@@ -1,0 +1,68 @@
+---
+description: Excalibur BLOG — оркестратор, Task(subagents), Cloud handoff в .cursor/
+alwaysApply: false
+---
+
+# Excalibur BLOG (плагин + Cloud)
+
+## Cloud
+
+- Handoff: `.cursor/excalibur-blog-handoff.md` (не коммитить)
+- Fragments: `.cursor/excalibur-blog-fragments/` для cover||schema
+- Task agents: `.cursor/agents/excalibur-blog-*`
+- Preflight: `scripts/excalibur_blog_today.py`, `excalibur_blog_research_start.py`
+- См. `AGENTS.md`, `CLOUD-AUTOMATION.md`
+
+## Главный и субагенты
+
+- **Директор** — чат (не Task): `agents/excalibur-blog-director.md`, skill `director-excalibur-blog`.
+- **Субагенты** — `Task(<name>)`, см. [agents/FOR-AGENTS.md](agents/FOR-AGENTS.md).
+
+## Пайплайн
+
+0. shell `excalibur_blog_research_start.py`
+1. `excalibur-blog-research`
+2. `excalibur-blog-writer`
+3. `excalibur-blog-geo-qa`
+4. **ПАРАЛЛЕЛЬНО** `excalibur-blog-cover` + `excalibur-blog-schema`
+5. `excalibur-blog-indexer`
+6. `excalibur-blog-publish` (если publish=yes)
+7. `excalibur-blog-category` (если publish=yes)
+8. `excalibur-blog-git-sync` (если publish=yes, не `git_sync=no`)
+
+Handoff: `shared/excalibur-blog-handoff.md`
+
+Команда: `commands/excalibur-blog-run.md`
+
+## По запросу — монитор индексации
+
+Плагин **только** `/excalibur` (не Viktor Office):
+
+- Task: `excalibur-blog-indexing-monitor`
+- Команда: `/excalibur-blog-indexing-status` → `commands/excalibur-blog-indexing-status.md`
+- Скрипт: `scripts/excalibur_blog_indexing_status.py`
+
+## По запросу — Дзен-адаптер (не шаг пайплайна)
+
+Плагин **только** `/excalibur`:
+
+- Task: `excalibur-blog-dzen`
+- Команда: `/excalibur-blog-dzen` → `commands/excalibur-blog-dzen.md`
+- Skill: `skills/dzen-excalibur-blog/SKILL.md`
+- Контракт: `shared/dzen-adapter-contract.md`
+- Скрипты: `excalibur_blog_dzen_adapter.py`, `excalibur_blog_dzen_rss.py`
+
+Запускать **только** когда пользователь просит версию для Дзена или RSS-push. Не после каждого Publish.
+
+## Git sync (шаг ⑧)
+
+- Task: `excalibur-blog-git-sync`
+- Команда: `/excalibur-blog-git-sync`
+- Контракт: `shared/excalibur-git-sync-contract.md`
+- Скрипт: `scripts/excalibur_blog_git_sync.py`
+
+## Запреты
+
+- `Task(excalibur-blog-director)`
+- субагенты не запускают вложенные Task
+- шаг 4 без QA PASS

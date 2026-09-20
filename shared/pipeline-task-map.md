@@ -1,0 +1,199 @@
+# Excalibur BLOG — карта задач и субагентов
+
+Директор **не** Task. Все роли ниже — `Task(<name>)`.
+
+## Схема
+
+```text
+[Д] Директор (чат)
+  │
+  ├─ 🔍 Task(excalibur-blog-scout)       ← Генерация / подбор свежих тем
+  │
+  ├─ shell: excalibur_blog_today.py
+  ├─ shell: excalibur_blog_research_start.py
+  │
+  ├─ ① Task(excalibur-blog-research)
+  ├─ ② Task(excalibur-blog-writer)
+  ├─ ③ Task(excalibur-blog-geo-qa)
+  │
+  ├─ ④a Task(excalibur-blog-cover)  ─┐ параллель
+  ├─ ④b Task(excalibur-blog-schema) ─┘
+  ├─ ④c Task(excalibur-blog-ai-metla)   ← после Cover PASS, до Indexer
+  │
+  ├─ ⑤ Task(excalibur-blog-indexer)
+  ├─ ⑥ Task(excalibur-blog-publish)   ← автоматически после Indexer (skip только publish:no)
+  ├─ ⑦ Task(excalibur-blog-category)  ← обязательно после Publish (рубрика WP)
+  └─ ⑧ Task(excalibur-blog-git-sync)  ← commit + push develop (allowlist)
+```
+
+## Таблица распределения
+
+| Шаг | Кто | Task name | Задачи | Артефакты | Handoff / fragment |
+|-----|-----|-----------|--------|-----------|-------------------|
+| 🔍 | **Scout** | `excalibur-blog-scout` | Поиск трендов 2026, Wordstat проверка, Jaccard-тест на уникальность | blog-topics.md (новые темы) | — |
+| 0 | **Директор** | — (shell) | дата, SERP, **utility gate темы**, article_dir | research-context.json, research-serp.json | обновить таблицу статуса |
+| ① | **Research** | `excalibur-blog-research` | SERP + web, факты с источниками, угол, FAQ-кандидаты | research-notes.md | handoff `=== RESEARCH ===` |
+| ② | **Writer** | `excalibur-blog-writer` | longread 8.5–9.5k, FAQ HTML, meta_ab | article.html, article.meta.json | handoff `=== WRITER ===` |
+| ③ | **GEO QA** | `excalibur-blog-geo-qa` | 5 QA-скриптов + **utility gate**, score ≥80 | *-report.json, utility-gate-report.json, article-qa.md | handoff `=== GEO QA ===` |
+| ④a | **Cover** | `excalibur-blog-cover` | ONE MCP quad 2×2 i2i + design code + split → cover + 3 inline | canvas-quad.png, cover.png, inline-01..03, registry | fragment cover.md |
+| ④b | **Schema** | `excalibur-blog-schema` | BlogPosting + FAQPage JSON-LD | schema.jsonld | fragment schema.md |
+| ④c | **AI Metla** | `excalibur-blog-ai-metla` | AI Метла: strip EXIF/C2PA/SynthID + SEO tags на cover/inline PNG | ai-metla-report.json, перезаписанные PNG | fragment ai-metla.md |
+| ⑤ | **Indexer** | `excalibur-blog-indexer` | interlink --apply, llms.txt | article.html (links), llms*.txt, promotion-checklist | handoff `=== INDEXER ===` |
+| ⑥ | **Publish** | `excalibur-blog-publish` | FTP WP post, featured, schema meta | wp-publish-result.json | handoff `=== PUBLISH ===` + published-articles.md |
+| ⑦ | **Category** | `excalibur-blog-category` | assign wp_category, verify ≠ bez-rubriki | category-guard-result.json | handoff `=== CATEGORY ===` |
+| ⑧ | **Git Sync** | `excalibur-blog-git-sync` | allowlist stage, commit, push develop | git-sync-report.json | handoff `=== GIT SYNC ===` |
+| — | **Dzen** | `excalibur-blog-dzen` | **По запросу:** переписать под Дзен, картинки, RSS item | `dzen/*` | handoff `=== DZEN ===` |
+
+## Кто чем НЕ занимается
+
+| Роль | Запрещено |
+|------|-----------|
+| Research | писать article.html |
+| Writer | QA-скрипты, cover, schema, publish |
+| GEO QA | править текст статьи (только FIX цикл → writer) |
+| Cover | schema, HTML статьи, AI Metla |
+| Schema | cover, HTML статьи, AI Metla |
+| AI Metla | schema, HTML статьи, MCP генерация |
+| Indexer | publish, переписывать body с нуля |
+| Publish | писать/редактировать longread |
+| Category | git, publish с нуля |
+| Git Sync | WP publish, правка article.html, `git add -A` |
+| Dzen Adapter | менять `article.html`, Writer, Publish, git |
+
+## Параллель (только одна пара)
+
+**④a Cover || ④b Schema** — после ③ QA PASS.  
+**④c AI Metla** — строго после ④a Cover PASS; до ⑤ Indexer.
+
+Нельзя параллелить: ①→②→③, ④c после ④a, ⑤ после ④a+④b+④c, ⑥ после ⑤.
+
+## Промпты для Директора (копировать в Task)
+
+### 🔍 Scout (Генератор свежих тем)
+
+```text
+Ты excalibur-blog-scout.
+Прочитай agents/excalibur-blog-scout.md + skills/scout-excalibur-blog/SKILL.md + shared/editorial-utility-only.md.
+1) python scripts/excalibur_blog_scout_helper.py --suggest-next
+2) WebSearch Курсора — найди горячие тренды 2026 (ИИ, автоматизация, n8n, Cursor, Make)
+3) Вызови wordstat_get_top_requests в user-mcp-kv для проверки показов в месяц и LSI-ключей
+4) python scripts/excalibur_blog_scout_helper.py --check-query "<запрос>" (защита от каннибализации)
+5) Сделай карточку темы и допиши (append) её в конец memory/topics/blog-topics.md.
+```
+
+### ① Research
+
+```text
+Ты excalibur-blog-research. topic_id: {ID}. article_dir из handoff.
+Прочитай agents/excalibur-blog-research.md + skills/excalibur-research/SKILL.md + shared/editorial-utility-only.md.
+Сначала utility gate темы. Вызови MCP-KV wordstat_get_top_requests для сбора спроса и LSI-ключей по primary_query.
+Угол только практический (how-to/чеклист). Выход: research-notes.md с данными Вордстат и utility_verdict PASS.
+Блок === EXCALIBUR BLOG RESEARCH ===. Не пиши article.html.
+```
+
+### ② Writer
+
+```text
+Ты excalibur-blog-writer. topic_id: {ID}.
+Прочитай agents/excalibur-blog-writer.md + skills/writer-excalibur-blog/SKILL.md + shared/editorial-utility-only.md.
+Только режим B: шаги, рекомендации, без воды. 8500–9500 символов.
+Блок === EXCALIBUR BLOG WRITER ===. Не запускай QA и cover.
+```
+
+### ③ GEO QA
+
+```text
+Ты excalibur-blog-geo-qa. topic_id: {ID}.
+Прочитай agents/excalibur-blog-geo-qa.md + skills/excalibur-geo-qa/SKILL.md.
+Запусти все QA-скрипты + excalibur_blog_utility_gate.py. article-qa.md verdict PASS обязателен.
+Блок === EXCALIBUR BLOG GEO QA ===. Не делай cover/schema.
+```
+
+### ④a Cover (параллель)
+
+```text
+Ты excalibur-blog-cover. topic_id: {ID}. article_dir из handoff.
+Прочитай agents/excalibur-blog-cover.md + skills/cover-excalibur-blog/SKILL.md + shared/blog-cover-quad-canvas-contract.md.
+1) excalibur_blog_hero_reference_url.py
+2) excalibur_blog_quad_manifest.py --merge
+3) правка cover/quad-manifest.json (hook, scene_hint, outfit агента)
+4) excalibur_blog_cover_quad_prompt.py --write-batch
+5) ONE CallMcpTool gpt-image-2 по quad-mcp-batch.json (input_urls обязателен)
+6) excalibur_blog_quad_apply.py --url ... --inject-html
+Fragment .cursor/excalibur-blog-fragments/cover.md (=== EXCALIBUR BLOG COVER ===). Не 4 MCP. Не трогай schema.
+После PASS — передай управление Директору для шага ④c AI Metla.
+```
+
+### ④c AI Metla (после Cover)
+
+```text
+Ты excalibur-blog-ai-metla. topic_id: {ID}. article_dir из handoff.
+Прочитай agents/excalibur-blog-ai-metla.md + skills/ai-metla-excalibur-blog/SKILL.md + shared/ai-metla-contract.md.
+python scripts/excalibur_blog_ai_metla.py --article-dir memory/blog/articles/<topic_id>-<slug>
+Fragment .cursor/excalibur-blog-fragments/ai-metla.md (=== EXCALIBUR BLOG AI METLA ===).
+Gate: cover/ai-metla-report.json verdict PASS. Не трогай article.html/schema.
+```
+
+### ④b Schema (параллель)
+
+```text
+Ты excalibur-blog-schema. topic_id: {ID}.
+Прочитай agents/excalibur-blog-schema.md + skills/schema-excalibur-blog/SKILL.md.
+schema.jsonld BlogPosting+FAQPage. Fragment .cursor/excalibur-blog-fragments/schema.md (=== EXCALIBUR BLOG SCHEMA ===). Не делай cover.
+```
+
+### ⑤ Indexer
+
+```text
+Ты excalibur-blog-indexer. topic_id: {ID}.
+Прочитай agents/excalibur-blog-indexer.md + skills/indexer-excalibur-blog/SKILL.md.
+interlinker --apply + llms generator. Блок === EXCALIBUR BLOG INDEXER === в handoff.
+```
+
+### ⑥ Publish (автоматически после Indexer)
+
+```text
+Ты excalibur-blog-publish. topic_id: {ID}. article_dir из handoff.
+Прочитай agents/excalibur-blog-publish.md + skills/publish-excalibur-blog/SKILL.md + shared/excalibur-wp-publish-contract.md.
+Preflight link-verify → dry-run → publish → обнови shared/published-articles.md + memory/blog/wp-publish-log.md.
+Блок === EXCALIBUR BLOG PUBLISH === + permalink в PIPELINE DONE.
+При HTTP timeout bootstrap — WebFetch fallback (см. skill).
+```
+
+### ⑧ Git Sync (после Category + индексация)
+
+```text
+Ты excalibur-blog-git-sync. trigger: publish. topic_id: {ID}. article_dir из handoff.
+Прочитай agents/excalibur-blog-git-sync.md + skills/git-excalibur-blog/SKILL.md + shared/excalibur-git-sync-contract.md.
+excalibur_blog_git_sync.py --dry-run → --stage → commit develop → push origin develop.
+Блок === EXCALIBUR BLOG GIT SYNC ===. Не stage site.env.local.
+```
+
+### ⑨ Dzen (по запросу, не пайплайн)
+
+```text
+Ты excalibur-blog-dzen. topic_id: {ID}. mode: rewrite-only|draft|rss-push.
+Прочитай agents/excalibur-blog-dzen.md + skills/dzen-excalibur-blog/SKILL.md + shared/dzen-adapter-contract.md.
+Официально: https://dzen.ru/help/ru/website/rss-modify.html
+Перепиши dzen/dzen-article.html, prepare-images, validate, similarity-check, write-item.
+rss-push только если пользователь явно просил и DZEN_RSS_ENABLED=yes.
+Блок === EXCALIBUR BLOG DZEN ===.
+```
+
+## Файлы субагентов
+
+| name | agent-md |
+|------|----------|
+| excalibur-blog-research | [agents/excalibur-blog-research.md](../agents/excalibur-blog-research.md) |
+| excalibur-blog-writer | [agents/excalibur-blog-writer.md](../agents/excalibur-blog-writer.md) |
+| excalibur-blog-geo-qa | [agents/excalibur-blog-geo-qa.md](../agents/excalibur-blog-geo-qa.md) |
+| excalibur-blog-cover | [agents/excalibur-blog-cover.md](../agents/excalibur-blog-cover.md) |
+| excalibur-blog-ai-metla | [agents/excalibur-blog-ai-metla.md](../agents/excalibur-blog-ai-metla.md) |
+| excalibur-blog-schema | [agents/excalibur-blog-schema.md](../agents/excalibur-blog-schema.md) |
+| excalibur-blog-indexer | [agents/excalibur-blog-indexer.md](../agents/excalibur-blog-indexer.md) |
+| excalibur-blog-publish | [agents/excalibur-blog-publish.md](../agents/excalibur-blog-publish.md) |
+| excalibur-blog-category | [agents/excalibur-blog-category.md](../agents/excalibur-blog-category.md) |
+| excalibur-blog-git-sync | [agents/excalibur-blog-git-sync.md](../agents/excalibur-blog-git-sync.md) |
+| excalibur-blog-dzen | [agents/excalibur-blog-dzen.md](../agents/excalibur-blog-dzen.md) |
+
+Cloud: те же имена в `.cursor/agents/`.

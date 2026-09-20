@@ -1,0 +1,25 @@
+{
+  "name": "pipeline-excalibur-blog",
+  "displayName": "pipeline · Excalibur BLOG",
+  "description": "pipeline · SEO/GEO статья: Scout → Research → Writer → GEO QA → Cover||Schema → Indexer → Publish в WP (опционально Дзен).",
+  "version": "0.2.5",
+  "keywords": [
+    "excalibur",
+    "blog",
+    "seo",
+    "geo",
+    "wordpress",
+    "orchestrator",
+    "subagents",
+    "dzen"
+  ],
+  "author": {
+    "name": "Виктор Прокопчук",
+    "url": "https://etodigital.ru"
+  },
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "commands": "./commands/",
+  "hooks": "./hooks.json"
+}
